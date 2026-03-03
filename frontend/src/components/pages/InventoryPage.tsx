@@ -1,7 +1,6 @@
 import { Loader } from "@/components/Loader";
 import {
   EmptyMini,
-  MetricBox,
   getReportProductName,
 } from "@/components/pages/inventory/inventory-page.shared";
 import { InventoryPageHeader } from "@/components/pages/inventory/InventoryPageHeader";
@@ -22,7 +21,6 @@ import { formatCurrency } from "@/helpers/formatCurrency";
 import { format } from "date-fns";
 import {
   AlertTriangle,
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   PackageSearch,
@@ -80,9 +78,6 @@ export const InventoryPage = () => {
               <a href="#stock-movements-section">Stock</a>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="#revenue-leaders-section">Revenue</a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
               <a href="#low-stock-section">Low Stock</a>
             </Button>
             <Button asChild variant="outline" size="sm">
@@ -92,12 +87,11 @@ export const InventoryPage = () => {
         </div>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,.9fr)]">
-        <div className="min-w-0 space-y-5">
-          <Card
-            id="inventory-products-section"
-            className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
-          >
+      <div className="space-y-5">
+        <Card
+          id="inventory-products-section"
+          className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
+        >
             <div className="border-b p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -105,7 +99,7 @@ export const InventoryPage = () => {
                     Inventory Products
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Mobile cards + desktop table with normalized product values.
+                    One scrollable table with inventory and report values across all screen sizes.
                   </p>
                 </div>
                 <Badge variant="secondary" className="w-fit rounded-full px-3 py-1">
@@ -158,13 +152,13 @@ export const InventoryPage = () => {
               </div>
             ) : (
               <>
-                <div className="px-4 pt-4 md:hidden">
+                <div className="px-4 pt-4">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Product Table (Swipe Left/Right)
+                    Product Table (Swipe Left/Right on smaller screens)
                   </p>
                 </div>
-                <div id="inventory-products-table" className="overflow-x-auto">
-                  <Table className="min-w-[780px]">
+                <div id="inventory-products-table" className="overflow-x-auto px-4 pb-4">
+                  <Table className="min-w-[980px]">
                     <TableHeader>
                       <TableRow className="bg-muted/40">
                         <TableHead>Product</TableHead>
@@ -173,6 +167,8 @@ export const InventoryPage = () => {
                         <TableHead className="text-right">Cost</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Stock</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">Gross Profit</TableHead>
                         <TableHead className="text-right">Created</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -215,6 +211,12 @@ export const InventoryPage = () => {
                                   })
                                 : "N/A"}
                             </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {report ? formatCurrency(Number(report.revenue) || 0) : "N/A"}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {report ? formatCurrency(Number(report.profit) || 0) : "N/A"}
+                            </TableCell>
                             <TableCell className="text-right text-muted-foreground">
                               {product.createdAt
                                 ? format(new Date(product.createdAt), "MM/dd/yy")
@@ -227,124 +229,44 @@ export const InventoryPage = () => {
                   </Table>
                 </div>
 
-                <div className="grid gap-3 p-4 md:hidden">
-                  {state.paginatedItems.map((product) => {
-                    const report = product.id != null ? state.reportMap.get(product.id) : undefined;
-                    return (
-                      <Card
-                        key={`${product.id ?? "x"}-${product.name}`}
-                        className="border-border/70 bg-background/80 p-4 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              #{product.id ?? "N/A"} {product.soldBy ? `| ${product.soldBy}` : ""}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className="rounded-full">
-                            {product.branchId != null
-                              ? state.branchNameMap.get(product.branchId) ?? `#${product.branchId}`
-                              : "N/A"}
-                          </Badge>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <MetricBox
-                            label="Category"
-                            value={
-                              product.categoryId != null
-                                ? (state.categoryNameMap.get(product.categoryId) ??
-                                  `Category #${product.categoryId}`)
-                                : "N/A"
-                            }
-                          />
-                          <MetricBox
-                            label="Stock"
-                            value={report ? Number(report.stock).toFixed(2) : "N/A"}
-                          />
-                          <MetricBox label="Cost" value={formatCurrency(product.costPerUnit)} />
-                          <MetricBox label="Price" value={formatCurrency(product.sellingPrice)} />
-                        </div>
-                        <p className="mt-3 text-xs text-muted-foreground">
-                          Created:{" "}
-                          {product.createdAt
-                            ? format(new Date(product.createdAt), "MMM d, yyyy")
-                            : "N/A"}
-                        </p>
-                      </Card>
-                    );
-                  })}
-                </div>
+                {state.filteredProductsCount > 0 && (
+                  <div className="border-t px-4 py-3">
+                    <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {(state.safePage - 1) * state.pageSize + 1}-
+                        {Math.min(state.safePage * state.pageSize, state.filteredProductsCount)} of{" "}
+                        {state.filteredProductsCount}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={state.prevPage}
+                          disabled={state.safePage <= 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={state.nextPage}
+                          disabled={state.safePage >= state.totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
-          </Card>
+        </Card>
 
-          <Card
-            id="stock-movements-section"
-            className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
-          >
-            <div className="border-b p-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Stock Movements
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Feed filtered by branch and search using product-to-branch mapping.
-              </p>
-            </div>
-            <div className="p-4">
-              <StockMovementFeed movements={state.filteredMovements} />
-            </div>
-          </Card>
-        </div>
-
-        <div className="min-w-0 space-y-5">
-          <Card
-            id="revenue-leaders-section"
-            className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
-          >
-            <div className="border-b p-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Revenue Leaders
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Top products by revenue for the current filters.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 p-4">
-              {state.topRevenueReports.map((r) => (
-                <div key={r.id} className="rounded-xl border bg-muted/20 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">
-                        {getReportProductName(r, state.productMap)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">#{r.productId}</p>
-                    </div>
-                    <Badge variant="secondary">{Number(r.stock).toFixed(2)}</Badge>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <MetricBox
-                      label="Revenue"
-                      value={formatCurrency(Number(r.revenue) || 0)}
-                    />
-                    <MetricBox
-                      label="Gross Profit"
-                      value={formatCurrency(Number(r.profit) || 0)}
-                    />
-                  </div>
-                </div>
-              ))}
-              {state.topRevenueReports.length === 0 && (
-                <EmptyMini text="No report data matched the current filters." />
-              )}
-            </div>
-          </Card>
-
+        <div className="grid gap-5 xl:grid-cols-2">
           <Card
             id="low-stock-section"
             className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
@@ -388,9 +310,9 @@ export const InventoryPage = () => {
             className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
           >
             <div className="border-b p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Store className="h-4 w-4 text-rose-600" />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Store className="h-4 w-4 shrink-0 text-rose-600" />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Operating Expenses
@@ -398,10 +320,12 @@ export const InventoryPage = () => {
                     <p className="text-sm text-muted-foreground">
                       Recent operating expenses for the current filters ({state.filteredOpex.length} entries).
                     </p>
+                    <div className="mt-2">
+                      <Badge variant="outline">{formatCurrency(state.summary.totalOpex)}</Badge>
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{formatCurrency(state.summary.totalOpex)}</Badge>
+                <div className="shrink-0">
                   <Button asChild size="sm" variant="outline" className="gap-2">
                     <Link to="/opex">Open OPEX</Link>
                   </Button>
@@ -436,6 +360,23 @@ export const InventoryPage = () => {
             </div>
           </Card>
         </div>
+
+        <Card
+          id="stock-movements-section"
+          className="scroll-mt-28 min-w-0 border-border/70 bg-background shadow-sm"
+        >
+          <div className="border-b p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Stock Movements
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Feed filtered by branch and search using product-to-branch mapping.
+            </p>
+          </div>
+          <div className="p-4">
+            <StockMovementFeed movements={state.filteredMovements} />
+          </div>
+        </Card>
       </div>
     </div>
   );

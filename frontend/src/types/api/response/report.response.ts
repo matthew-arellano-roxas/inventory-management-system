@@ -22,7 +22,6 @@ export type ProductReportResponse = {
 export type ProductReportSummaryResponse = {
   totalStock: number;
   lowStockCount: number;
-  topRevenueReports: ProductReportResponse[];
   lowStockReports: ProductReportResponse[];
 };
 

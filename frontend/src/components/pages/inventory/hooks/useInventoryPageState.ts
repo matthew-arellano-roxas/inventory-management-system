@@ -177,9 +177,7 @@ export function useInventoryPageState() {
     lowStockCount: Number(productSummary?.lowStockCount) || 0,
   };
 
-  const topRevenueReports = productSummary?.topRevenueReports ?? [];
   const lowStockReports = productSummary?.lowStockReports ?? [];
-  const filteredReports = topRevenueReports;
   const products: InventoryProduct[] = [];
 
   const pageSize = pagedProductReportsQuery.data?.meta?.pageSize ?? 30;
@@ -254,7 +252,6 @@ export function useInventoryPageState() {
     branches,
     categories,
     products,
-    productReports: topRevenueReports,
     stockMovements,
     opexList,
     branchNameMap,
@@ -263,11 +260,9 @@ export function useInventoryPageState() {
     reportMap,
     filteredProducts,
     filteredProductsCount,
-    filteredReports,
     filteredMovements,
     filteredOpex,
     summary,
-    topRevenueReports,
     lowStockReports,
     pageSize,
     page,

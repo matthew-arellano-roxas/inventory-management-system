@@ -102,7 +102,10 @@ export function UpdateProductFormModal({
           <DialogTitle>Update Product</DialogTitle>
         </DialogHeader>
         <div className="no-scrollbar -mx-4 max-h-[50vh] overflow-y-auto px-4">
-          <form id="update-product-form" onSubmit={form.handleSubmit(onSubmitFn)}>
+          <form
+            id="update-product-form"
+            onSubmit={form.handleSubmit(onSubmitFn)}
+          >
             <FieldGroup>
               <Field data-invalid={!!errors.name}>
                 <FieldLabel htmlFor="name">Product Name</FieldLabel>
@@ -123,6 +126,7 @@ export function UpdateProductFormModal({
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   aria-invalid={!!errors.costPerUnit}
                   {...form.register("costPerUnit", { valueAsNumber: true })}
+                  onWheel={(e) => (e.target as HTMLElement).blur()}
                 />
                 {errors.costPerUnit && (
                   <FieldError errors={[errors.costPerUnit]} />
@@ -137,6 +141,7 @@ export function UpdateProductFormModal({
                   step="any"
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   aria-invalid={!!errors.sellingPrice}
+                  onWheel={(e) => (e.target as HTMLElement).blur()}
                   {...form.register("sellingPrice", { valueAsNumber: true })}
                 />
                 {errors.sellingPrice && (
@@ -199,7 +204,10 @@ export function UpdateProductFormModal({
                         <SelectGroup>
                           <SelectLabel>Category</SelectLabel>
                           {categoryList.map((category) => (
-                            <SelectItem key={category.id} value={String(category.id)}>
+                            <SelectItem
+                              key={category.id}
+                              value={String(category.id)}
+                            >
                               {category.name}
                             </SelectItem>
                           ))}

@@ -114,6 +114,7 @@ export function CreateProductFormModal({
                   id="name"
                   {...form.register("name")}
                   aria-invalid={!!errors.name}
+                  autoComplete="off"
                 />
                 {errors.name && <FieldError errors={[errors.name]} />}
               </Field>
@@ -126,6 +127,8 @@ export function CreateProductFormModal({
                   step="any"
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   aria-invalid={!!errors.costPerUnit}
+                  autoComplete="off"
+                  onWheel={(e) => (e.target as HTMLElement).blur()}
                   {...form.register("costPerUnit", { valueAsNumber: true })}
                 />
                 {errors.costPerUnit && (
@@ -141,6 +144,8 @@ export function CreateProductFormModal({
                   step="any"
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   aria-invalid={!!errors.sellingPrice}
+                  autoComplete="off"
+                  onWheel={(e) => (e.target as HTMLElement).blur()}
                   {...form.register("sellingPrice", { valueAsNumber: true })}
                 />
                 {errors.sellingPrice && (
