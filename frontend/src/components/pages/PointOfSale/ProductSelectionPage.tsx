@@ -26,6 +26,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useAccessControl } from "@/auth/access-control";
 import { ROLE_NAMES } from "@/auth/access-policy";
+import { toast } from "sonner";
 
 type ModalView =
   | "IDLE"
@@ -145,9 +146,15 @@ export function ProductSelectionPage() {
   };
 
   const handleProductDelete = (product: { id: number; name: string }) => {
-    const confirmed = window.confirm(`Delete product "${product.name}"?`);
-    if (!confirmed) return;
-    deleteProductMutation.mutate(product.id);
+    toast.warning(`Delete product "${product.name}"?`, {
+      description: "This will permanently remove it from the catalog.",
+      action: {
+        label: deleteProductMutation.isPending ? "Deleting..." : "Delete",
+        onClick: () => {
+          deleteProductMutation.mutate(product.id);
+        },
+      },
+    });
   };
 
   if (Object.values(isPending).every((val) => val === true)) return <Loader />;

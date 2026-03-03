@@ -1,7 +1,7 @@
 import { createTransaction } from "@/api/transaction.api";
 import { TransactionType } from "@/types/api/payload";
 import type { Product } from "@/types/api/response";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { toast } from "sonner";
 
 export type PosProductActionType = "SALE" | "PURCHASE" | "DAMAGE" | "RETURN";
@@ -24,16 +24,6 @@ export function useQueuedProductTransactions({
   const pendingTransactionTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(
     new Set(),
   );
-
-  useEffect(() => {
-    const pendingTimeouts = pendingTransactionTimeoutsRef.current;
-    return () => {
-      for (const timeoutId of pendingTimeouts) {
-        clearTimeout(timeoutId);
-      }
-      pendingTimeouts.clear();
-    };
-  }, []);
 
   const handleProductActionSubmit = (
     product: Product,
@@ -112,6 +102,7 @@ export function useQueuedProductTransactions({
 
     toast.success(`${actionLabel} queued for submission.`, {
       description: "Undo within 5 seconds to cancel.",
+      duration: 5000,
       action: {
         label: "Undo",
         onClick: () => {
