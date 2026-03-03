@@ -3,12 +3,15 @@ import createHttpError from 'http-errors';
 import { getTotalDamageAmount } from './transaction';
 import { opexService } from './opex.service';
 import {
+  DailyReportQuery,
   BranchFinancialReport,
   ProductReportQuery,
   ProductReportSummary,
 } from '@/types/report.types';
 import { calculateSkip } from '@/helpers';
 import { Prisma } from '@root/generated/prisma/client';
+import { TransactionType } from '@root/generated/prisma/enums';
+import { addDays, startOfDay } from 'date-fns';
 
 const ITEM_LIMIT = 30;
 
@@ -46,6 +49,35 @@ const getMonthlyReports = () => {
   });
 };
 
+const getDailyReports = async (query?: DailyReportQuery) => {
+  if (query?.branchId != null) {
+    const reports = await prisma.dailyReport.findMany({
+      where: { branchId: query.branchId },
+      orderBy: { date: 'desc' },
+      take: 7,
+    });
+
+    return reports.reverse();
+  }
+
+  const reports = await prisma.dailyReport.groupBy({
+    by: ['date'],
+    _sum: {
+      revenue: true,
+      profit: true,
+    },
+    orderBy: { date: 'desc' },
+    take: 7,
+  });
+
+  return reports.reverse().map((report, index) => ({
+    id: index + 1,
+    date: report.date,
+    revenue: report._sum.revenue ?? 0,
+    profit: report._sum.profit ?? 0,
+  }));
+};
+
 const getCurrentMonthReport = async () => {
   return prisma.branchReport
     .aggregate({
@@ -60,22 +92,95 @@ const getCurrentMonthReport = async () => {
     });
 };
 
+const getCurrentDayReport = async (query?: DailyReportQuery) => {
+  const dayStart = startOfDay(new Date());
+  const nextDayStart = addDays(dayStart, 1);
+
+  const [transactionItems, damageAggregate] = await Promise.all([
+    prisma.transactionItem.findMany({
+      where: {
+        createdAt: {
+          gte: dayStart,
+          lt: nextDayStart,
+        },
+        transactionType: {
+          in: [TransactionType.SALE, TransactionType.RETURN],
+        },
+        ...(query?.branchId != null
+          ? {
+              transaction: {
+                branchId: query.branchId,
+              },
+            }
+          : {}),
+      },
+      select: {
+        price: true,
+        quantity: true,
+        transactionType: true,
+        product: {
+          select: {
+            costPerUnit: true,
+          },
+        },
+      },
+    }),
+    prisma.transaction.aggregate({
+      where: {
+        type: TransactionType.DAMAGE,
+        createdAt: {
+          gte: dayStart,
+          lt: nextDayStart,
+        },
+        ...(query?.branchId != null ? { branchId: query.branchId } : {}),
+      },
+      _sum: {
+        totalAmount: true,
+      },
+    }),
+  ]);
+
+  const totals = transactionItems.reduce(
+    (acc, item) => {
+      const amount = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 0;
+      const costPerUnit = Number(item.product.costPerUnit) || 0;
+      const grossProfit = amount - costPerUnit * quantity;
+      const direction = item.transactionType === TransactionType.RETURN ? -1 : 1;
+
+      acc.revenue += amount * direction;
+      acc.profit += grossProfit * direction;
+
+      return acc;
+    },
+    { revenue: 0, profit: 0 },
+  );
+
+  return {
+    revenue: totals.revenue,
+    profit: totals.profit,
+    damage: damageAggregate._sum.totalAmount ?? 0,
+  };
+};
+
 // Product Reports
 const getProductReports = (query?: ProductReportQuery) => {
   const productDetails = query?.product_details;
   const where = buildProductReportWhere(query);
+  const take = query?.page != null ? ITEM_LIMIT : query?.limit;
+  const skip = query?.page != null ? calculateSkip(query.page, ITEM_LIMIT) : undefined;
+  const orderBy: Prisma.ProductReportOrderByWithRelationInput[] =
+    query?.limit != null && query.page == null
+      ? [{ revenue: 'desc' }, { productId: 'asc' }]
+      : [{ productId: 'asc' }];
 
   return prisma.productReport.findMany({
-    orderBy: { productId: 'asc' },
+    orderBy,
     include: {
       product: productDetails ?? false,
     },
-    ...(query?.page != null
-      ? {
-          take: ITEM_LIMIT,
-          skip: calculateSkip(query.page, ITEM_LIMIT),
-        }
-      : {}),
+    ...(take != null ? { take } : {}),
+    ...(skip != null ? { skip } : {}),
     where,
   });
 };
@@ -222,6 +327,8 @@ const getFinancialReportList = async () => {
 
 export const reportService = {
   getMonthlyReports,
+  getDailyReports,
+  getCurrentDayReport,
   getCurrentMonthReport,
   getProductReports,
   getProductReportCount,

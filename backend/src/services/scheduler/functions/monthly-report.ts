@@ -26,6 +26,6 @@ export async function createMonthlyReport() {
         profit: branchReport.profit,
       },
     });
-    resetReports(tx);
+    await resetReports(tx);
   });
 }

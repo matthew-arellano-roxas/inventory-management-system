@@ -39,7 +39,8 @@ export function ProductReportRanking({
         displayName: p.productName?.trim() || p.product?.name?.trim() || `Product #${p.productId}`,
         margin: p.revenue ? (p.profit / p.revenue) * 100 : 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
   }, [data]);
 
   return (

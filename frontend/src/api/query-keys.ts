@@ -1,7 +1,9 @@
 export const keys = {
   reports: {
     all: ["reports"] as const,
+    currentDay: () => [...keys.reports.all, "current-day"] as const,
     currentMonth: () => [...keys.reports.all, "current-month"] as const,
+    daily: () => [...keys.reports.all, "daily"] as const,
     monthly: () => [...keys.reports.all, "monthly"] as const,
     branch: () => [...keys.reports.all, "branch"] as const,
     branchFinancialList: () => [...keys.reports.all, "branch-financial-list"] as const,

@@ -3,7 +3,7 @@ import createHttpError from 'http-errors';
 import { ok } from '@/helpers/response';
 import { Controller } from '@/types/controller.type';
 import { reportService } from '@/services';
-import { ProductReportQuery } from '@/types/report.types';
+import { DailyReportQuery, ProductReportQuery } from '@/types/report.types';
 
 const PRODUCT_REPORT_PAGE_SIZE = 30;
 
@@ -11,6 +11,35 @@ const PRODUCT_REPORT_PAGE_SIZE = 30;
 const getMonthlyReport: Controller = async (req, res, _next) => {
   const reports = await reportService.getMonthlyReports();
   res.status(StatusCodes.OK).json(ok(reports, 'Monthly report retrieved'));
+};
+
+const parseDailyReportQuery = (input: Record<string, unknown>) => {
+  const { branchId } = input;
+  const query: DailyReportQuery = {};
+
+  if (typeof branchId === 'string' && branchId.trim() !== '') {
+    const parsedBranchId = Number(branchId);
+
+    if (Object.is(parsedBranchId, NaN) || parsedBranchId <= 0) {
+      throw new createHttpError.BadRequest('Please provide a valid branchId query');
+    }
+
+    query.branchId = parsedBranchId;
+  }
+
+  return query;
+};
+
+const getDailyReport: Controller = async (req, res, _next) => {
+  const query = parseDailyReportQuery(req.query);
+  const reports = await reportService.getDailyReports(query);
+  res.status(StatusCodes.OK).json(ok(reports, 'Daily report retrieved'));
+};
+
+const getCurrentDayReport: Controller = async (req, res, _next) => {
+  const query = parseDailyReportQuery(req.query);
+  const reports = await reportService.getCurrentDayReport(query);
+  res.status(StatusCodes.OK).json(ok(reports, 'Current day report retrieved'));
 };
 
 // Get current month report
@@ -21,7 +50,7 @@ const getCurrentMonthReport: Controller = async (req, res, _next) => {
 
 // Get product reports
 const parseProductReportQuery = (input: Record<string, unknown>) => {
-  const { product_details, search, page, productId, branchId } = input;
+  const { product_details, search, page, limit, productId, branchId } = input;
   const query: ProductReportQuery = {};
 
   if (typeof product_details === 'string') {
@@ -38,6 +67,14 @@ const parseProductReportQuery = (input: Record<string, unknown>) => {
       throw new createHttpError.BadRequest('Please provide a valid page query');
     }
     query.page = parsedPage;
+  }
+
+  if (typeof limit === 'string' && limit.trim() !== '') {
+    const parsedLimit = Number(limit);
+    if (Object.is(parsedLimit, NaN) || parsedLimit <= 0) {
+      throw new createHttpError.BadRequest('Please provide a valid limit query');
+    }
+    query.limit = parsedLimit;
   }
 
   if (typeof productId === 'string' && productId.trim() !== '') {
@@ -124,6 +161,8 @@ const getBranchFinancialReportList: Controller = async (req, res, _next) => {
 
 export const reportController = {
   getMonthlyReport,
+  getDailyReport,
+  getCurrentDayReport,
   getCurrentMonthReport,
   getProductReport,
   getProductReportSummary,

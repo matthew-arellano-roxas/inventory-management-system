@@ -5,6 +5,7 @@ import {
   type BranchFinancialReportResponse,
   type BranchReportResponse,
   type CurrentMonthReportResponse,
+  type DailyReportResponse,
   type MonthlyReportResponse,
   type ProductReportQuery,
   type ProductReportResponse,
@@ -23,10 +24,30 @@ export const getCurrentMonthData = async () => {
   return response.data.data;
 };
 
+export const getCurrentDayData = async (branchId?: number) => {
+  const response = await api.get<ApiResponse<CurrentMonthReportResponse>>(
+    "/api/report/current-day",
+    {
+      params: branchId ? { branchId } : undefined,
+    },
+  );
+  return response.data.data;
+};
+
 export const getMonthlyReport = async () => {
   // We remove the .catch here so the Router can handle the error via errorElement
   const response = await api.get<ApiResponse<MonthlyReportResponse[]>>(
     "/api/report/monthly",
+  );
+  return response.data.data;
+};
+
+export const getDailyReport = async (branchId?: number) => {
+  const response = await api.get<ApiResponse<DailyReportResponse[]>>(
+    "/api/report/daily",
+    {
+      params: branchId ? { branchId } : undefined,
+    },
   );
   return response.data.data;
 };

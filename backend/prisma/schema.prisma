@@ -77,6 +77,7 @@ model Branch{
   product Product[]
   transaction Transaction[]
   branchReport BranchReport?
+  dailyReport DailyReport[]
   operatingExpense OperatingExpense[]
 }
 
@@ -151,6 +152,19 @@ model MonthlyReport{
   profit Float @default(0)
   revenue Float @default(0)
   stock Float @default(0)
+}
+
+model DailyReport{
+  id Int @id @default(autoincrement())
+  branchId Int
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  date DateTime
+  profit Float @default(0)
+  revenue Float @default(0)
+
+  @@unique([branchId, date])
+  @@index([date])
+  @@index([branchId, date])
 }
 
 // Notification

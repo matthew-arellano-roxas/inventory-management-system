@@ -10,7 +10,7 @@ export async function cleanupOldTransactions() {
     where: { createdAt: { lt: cutoffDate } },
   });
 
-  logger.info(`[Cleanup] Found ${oldCount} transactions older than 1 year.`);
+  logger.info(`[TRANSACTION CLEANUP] Found ${oldCount} transactions older than 1 year.`);
 
   if (oldCount === 0) return { count: 0 };
 

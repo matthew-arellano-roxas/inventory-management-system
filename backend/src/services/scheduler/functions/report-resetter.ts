@@ -9,13 +9,13 @@ export async function resetReports(tx?: Prisma.TransactionClient) {
       profit: 0,
     },
   });
-  const branchIds = await prisma.branch
+  const branchIds = await client.branch
     .findMany({ select: { id: true } })
     .then((branches) => branches.map((branch) => branch.id));
   await Promise.all(
     branchIds.map(async (branchId) => {
       await client.branchReport.update({
-        where: { id: branchId },
+        where: { branchId },
         data: {
           revenue: 0,
           profit: 0,

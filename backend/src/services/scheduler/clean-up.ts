@@ -4,7 +4,9 @@ import { cleanupStockMovements } from '@/services/scheduler/functions/stock-move
 import { logger } from '@/config';
 import { stockLevelCheck } from './functions/stock-level-check';
 import { cleanupOldAnnouncements } from './functions/notification-cleanup';
+import { cleanupOldDailyReports } from './functions/daily-report-cleanup';
 import { createMonthlyReport } from './functions/monthly-report';
+import { createDailyReport } from './functions/daily-report';
 import { createResourceCleanAnnouncement } from '../announcement/cleanup-announcement';
 
 export function scheduleWeeklyCleanup() {
@@ -15,8 +17,9 @@ export function scheduleWeeklyCleanup() {
         await cleanupOldTransactions();
         await cleanupStockMovements();
         await cleanupOldAnnouncements();
+        await cleanupOldDailyReports();
         await createResourceCleanAnnouncement();
-        logger.info('[Cleanup] Weekly cleanup completed.');
+        logger.info('[CLEAN UP] Weekly cleanup completed.');
       } catch (err) {
         logger.error(err);
       }
@@ -32,6 +35,8 @@ export function dailyCheck() {
     '0 0 * * *',
     async () => {
       try {
+        await createDailyReport();
+        logger.info('[Cleanup] Daily report created.');
         await stockLevelCheck();
         logger.info('[Cleanup] Daily check completed.');
       } catch (err) {

@@ -2,6 +2,7 @@ import { AnnouncementType } from '@root/generated/prisma/enums';
 import { saveAnnouncement, sendAnnouncement } from '@/services/announcement/announcement.service';
 import { invalidateCache } from '@/middlewares/cache';
 import { ROUTE } from '@/enums/product.enums';
+import { logger } from '@/config';
 
 export enum ResourceAnnouncementTitle {
   RESOURCE_CLEANUP = 'Resource Cleanup',
@@ -18,5 +19,6 @@ export const createResourceCleanAnnouncement = async () => {
   });
   sendAnnouncement(announcement.title, announcement.message);
   invalidateCache(ROUTE.ANNOUNCEMENT);
+  logger.info(`[RESOURCE CLEANUP] ${announcement.title}: ${announcement.message}`);
   return announcement;
 };

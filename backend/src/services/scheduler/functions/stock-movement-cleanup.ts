@@ -1,5 +1,6 @@
 import { subMonths } from 'date-fns';
 import { prisma } from '@prisma';
+import { logger } from '@/config';
 
 export async function cleanupStockMovements() {
   const cutoffDate = subMonths(new Date(), 1);
@@ -43,6 +44,8 @@ export async function cleanupStockMovements() {
       id: { notIn: keepIds },
     },
   });
+
+  logger.info(`[STOCK MOVEMENT CLEANUP] Deleted ${deleted.count} stock movements.`);
 
   return deleted;
 }

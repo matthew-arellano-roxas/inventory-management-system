@@ -14,7 +14,12 @@ export type ProductReportQuery = {
   product_details?: boolean;
   search?: string;
   page?: number;
+  limit?: number;
   productId?: number;
+  branchId?: number;
+};
+
+export type DailyReportQuery = {
   branchId?: number;
 };
 

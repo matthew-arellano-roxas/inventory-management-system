@@ -4,6 +4,7 @@ export type ProductReportQuery = {
   product_details?: boolean;
   search?: string;
   page?: number;
+  limit?: number;
   productId?: number;
   branchId?: number;
 };
@@ -44,6 +45,14 @@ export type MonthlyReportResponse = {
   profit: number;
   revenue: number;
   stock: number;
+};
+
+export type DailyReportResponse = {
+  id: number;
+  date: string;
+  profit: number;
+  revenue: number;
+  branchId?: number;
 };
 
 export type CurrentMonthReportResponse = {

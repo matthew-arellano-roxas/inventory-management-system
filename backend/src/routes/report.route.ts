@@ -11,6 +11,8 @@ reportRoute.use(cacheMiddleware(TTL.ONE_MINUTE));
 
 // Monthly
 reportRoute.get('/monthly', reportController.getMonthlyReport);
+reportRoute.get('/daily', reportController.getDailyReport);
+reportRoute.get('/current-day', reportController.getCurrentDayReport);
 reportRoute.get('/current-month', reportController.getCurrentMonthReport);
 
 // Product

@@ -38,12 +38,10 @@ export function MonthlyReportChart({
   trendKey?: "revenue" | "profit";
   className?: string;
 }) {
-  // 1. Memoized data with 6-slot padding
   const chartData: MonthRow[] = useMemo(() => {
     const transformed = getMonthRow(data);
     if (transformed.length < 6) {
       const paddingNeeded = 6 - transformed.length;
-      // We use undefined for values so Recharts knows there's no data point there
       const padding = Array.from({ length: paddingNeeded }).map(() => ({
         month: "",
         revenue: undefined,
@@ -55,7 +53,6 @@ export function MonthlyReportChart({
     return transformed;
   }, [data]);
 
-  // 2. Filter out ghost slots for helper functions
   const realDataOnly = useMemo(
     () => chartData.filter((d) => d.month !== ""),
     [chartData],
@@ -93,8 +90,6 @@ export function MonthlyReportChart({
               }
               interval={0}
             />
-            {/* 3. Recharts Tooltip doesn't have filterProps. 
-                   It will automatically hide values that are undefined. */}
             <ChartTooltip
               cursor={{ fill: "rgba(0,0,0,0.04)" }}
               content={
