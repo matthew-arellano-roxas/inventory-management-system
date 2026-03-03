@@ -1,4 +1,3 @@
-import { logger } from '@/config';
 import { prisma } from '@root/lib/prisma';
 import { subDays } from 'date-fns';
 
@@ -18,10 +17,6 @@ export async function cleanupOldDailyReports(
     },
   });
 
-  logger.info(
-    `[CLEANUP DAILY REPORTS] Found ${found} daily report entries older than ${retentionDays} days`,
-  );
-
   if (found === 0) {
     return { found: 0, deleted: 0 };
   }
@@ -31,8 +26,6 @@ export async function cleanupOldDailyReports(
       date: { lt: cutoffDate },
     },
   });
-
-  logger.info(`[CLEANUP DAILY REPORTS] Deleted ${deleted} daily report entries`);
 
   return { found, deleted };
 }

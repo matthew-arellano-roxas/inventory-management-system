@@ -1,4 +1,3 @@
-import { logger } from '@/config';
 import { prisma } from '@root/lib/prisma';
 import { subDays } from 'date-fns';
 
@@ -21,10 +20,6 @@ export async function cleanupOldAnnouncements(retentionDays = 90): Promise<Clean
     },
   });
 
-  logger.info(
-    `[CLEANUP ANNOUNCEMENTS] Found ${found} annoucements older than ${retentionDays} days`,
-  );
-
   if (found === 0) {
     return { found: 0, deleted: 0 };
   }
@@ -35,8 +30,6 @@ export async function cleanupOldAnnouncements(retentionDays = 90): Promise<Clean
       createdAt: { lt: cutoffDate },
     },
   });
-
-  logger.info(`[CLEANUP ANNOUNCEMENTS] Deleted ${deleted} annoucements`);
 
   return { found, deleted };
 }

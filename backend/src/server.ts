@@ -22,7 +22,7 @@ import {
 } from '@/routes';
 
 // Scheduler
-import { dailyCheck, scheduleWeeklyCleanup, scheduleMonthlyReport } from '@/services';
+import { startBackgroundJobs } from '@/services';
 import { requestLogger, protectedRoute, errorHandler } from '@/middlewares';
 import cors from 'cors';
 import { initSocketServer } from '@/socket';
@@ -49,13 +49,10 @@ app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
 
 app.use(errorHandler);
 
-scheduleWeeklyCleanup();
-dailyCheck();
-scheduleMonthlyReport();
-
 // Start server
 (async () => {
   await checkDatabaseConnection(); // wait for DB connection
+  await startBackgroundJobs();
   server.listen(serverConfig.port, () => {
     logger.info(`Server running at http://localhost:${serverConfig.port}`);
   });

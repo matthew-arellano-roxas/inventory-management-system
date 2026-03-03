@@ -4,15 +4,27 @@ services:
     container_name: inventory-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mydb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d mydb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: inventory-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,33 +33,36 @@ services:
     build:
       context: ./backend
       args:
-        DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
+        DATABASE_URL: ${DATABASE_URL}
     container_name: inventory-backend
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
-      AUTH_AUDIENCE: https://inventory-system-api.com
-      AUTH_ISSUER_BASE_URL: https://dev-dmb2cn465p1zlfkr.us.auth0.com
-      ALLOWED_ORIGINS: http://localhost:5173
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_AUDIENCE: ${AUTH_AUDIENCE}
+      AUTH_ISSUER_BASE_URL: ${AUTH_ISSUER_BASE_URL}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
     ports:
-      - "3000:3000"
+      - "${PORT}:3000"
     command: sh -c "npx prisma migrate deploy && npm start"
 
   frontend:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:3000
-        VITE_AUTH0_AUDIENCE: https://inventory-system-api.com
-        VITE_AUTH0_DOMAIN: dev-dmb2cn465p1zlfkr.us.auth0.com
-        VITE_AUTH0_CLIENT_ID: njC3UWMPH8dqmitM00i3wvKIpF55bHqi
-        VITE_AUTH0_BACKEND_API_IDENTIFIER: https://inventory-system-api.com
-        VITE_AUTH0_SCOPE: openid profile email offline_access
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_AUTH0_AUDIENCE: ${VITE_AUTH0_AUDIENCE}
+        VITE_AUTH0_DOMAIN: ${VITE_AUTH0_DOMAIN}
+        VITE_AUTH0_CLIENT_ID: ${VITE_AUTH0_CLIENT_ID}
+        VITE_AUTH0_BACKEND_API_IDENTIFIER: ${VITE_AUTH0_BACKEND_API_IDENTIFIER}
+        VITE_AUTH0_SCOPE: ${VITE_AUTH0_SCOPE}
     container_name: inventory-frontend
     restart: unless-stopped
     depends_on:
