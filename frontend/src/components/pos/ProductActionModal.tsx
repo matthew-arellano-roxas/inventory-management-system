@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -64,11 +64,6 @@ export function ProductActionModal({
     (effectiveType === "SALE" || effectiveType === "RETURN");
   const usesAmountInput = canUseAmountMode && inputMode === "AMOUNT";
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setInputMode(canUseAmountMode ? "AMOUNT" : "QUANTITY");
-  }, [canUseAmountMode, isOpen]);
-
   if (!product) return null;
 
   const numericAmount = Math.max(parseFloat(amountInput) || 0, 0);
@@ -83,7 +78,8 @@ export function ProductActionModal({
   const totalPurchaseCost = product.costPerUnit * numericQuantity;
   const discountValue = Math.max(parseFloat(discountInput) || 0, 0);
   const discountBaseAmount = totalSalePrice;
-  const supportsDiscount = effectiveType === "SALE" || effectiveType === "RETURN";
+  const supportsDiscount =
+    effectiveType === "SALE" || effectiveType === "RETURN";
   const computedDiscountAmount = supportsDiscount
     ? discountMode === "PERCENT"
       ? (discountBaseAmount * discountValue) / 100
@@ -113,6 +109,7 @@ export function ProductActionModal({
     onSubmit(product, numericQuantity, effectiveType, normalizedDiscountAmount);
     setQuantity("1");
     setAmountInput("0");
+    setInputMode("AMOUNT");
     setType("SALE");
     setDiscountInput("0");
     setDiscountMode("AMOUNT");
@@ -174,7 +171,15 @@ export function ProductActionModal({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          setInputMode("AMOUNT");
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-xl">{product.name}</DialogTitle>
@@ -188,7 +193,14 @@ export function ProductActionModal({
               toast.error("Only admin can access purchase actions.");
               return;
             }
-            setType(value as TransactionType);
+            const nextType = value as TransactionType;
+            setType(nextType);
+            setInputMode(
+              product.soldBy === Unit.KG &&
+                (nextType === "SALE" || nextType === "RETURN")
+                ? "AMOUNT"
+                : "QUANTITY",
+            );
           }}
           className="w-full"
         >
@@ -262,7 +274,8 @@ export function ProductActionModal({
             <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4">
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <p className="text-xs font-medium text-destructive">
-                Reporting damage will deduct {formattedQuantity} {product.soldBy}
+                Reporting damage will deduct {formattedQuantity}{" "}
+                {product.soldBy}
                 (s) from current stock.
               </p>
             </div>
@@ -272,8 +285,8 @@ export function ProductActionModal({
             <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
               <PackagePlus className="h-5 w-5 text-emerald-600" />
               <p className="text-xs font-medium text-emerald-700">
-                Purchasing stock will add {formattedQuantity} {product.soldBy}(s)
-                to current inventory.
+                Purchasing stock will add {formattedQuantity} {product.soldBy}
+                (s) to current inventory.
               </p>
             </div>
           )}
@@ -390,7 +403,14 @@ export function ProductActionModal({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose} className="flex-1">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setInputMode("AMOUNT");
+              onClose();
+            }}
+            className="flex-1"
+          >
             Cancel
           </Button>
           <Button
