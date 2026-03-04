@@ -14,6 +14,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useEffect } from "react";
 import { useAccessControl } from "@/auth/access-control";
 
+const CART_BADGE_DECIMALS = 2;
+
 export function RootLayout() {
   const {
     isAuthenticated,
@@ -31,6 +33,9 @@ export function RootLayout() {
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const formattedCartItemCount = Number(
+    cartItemCount.toFixed(CART_BADGE_DECIMALS),
+  );
   const cartSubtotal = items.reduce(
     (total, item) => total + item.unitPrice * item.quantity,
     0,
@@ -117,7 +122,7 @@ export function RootLayout() {
                       <div className="relative">
                         <ShoppingBasket className="h-5 w-5" />
                         <Badge className="absolute -top-2 -right-2 h-4 min-w-4 px-1 text-[10px] leading-none flex items-center justify-center">
-                          {cartItemCount}
+                          {formattedCartItemCount}
                         </Badge>
                       </div>
                       <div className="flex flex-col items-start leading-tight">

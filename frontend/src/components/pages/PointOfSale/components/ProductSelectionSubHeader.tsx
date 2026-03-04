@@ -11,6 +11,8 @@ type ProductSelectionSubHeaderProps = {
   cartSubtotal: number;
 };
 
+const CART_COUNT_DECIMALS = 2;
+
 export function ProductSelectionSubHeader({
   branchName,
   productCount,
@@ -18,6 +20,10 @@ export function ProductSelectionSubHeader({
   cartItemCount,
   cartSubtotal,
 }: ProductSelectionSubHeaderProps) {
+  const formattedCartItemCount = Number(
+    cartItemCount.toFixed(CART_COUNT_DECIMALS),
+  );
+
   return (
     <Card className="relative mb-6 overflow-hidden border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl">
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#22d3ee,_transparent_45%),radial-gradient(circle_at_bottom_left,_#f59e0b,_transparent_35%)]" />
@@ -50,7 +56,9 @@ export function ProductSelectionSubHeader({
               <p className="text-[10px] uppercase tracking-widest text-white/60">
                 Cart Items
               </p>
-              <p className="mt-1 text-lg font-bold leading-none">{cartItemCount}</p>
+              <p className="mt-1 text-lg font-bold leading-none">
+                {formattedCartItemCount}
+              </p>
             </div>
             <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
               <p className="text-[10px] uppercase tracking-widest text-white/60">

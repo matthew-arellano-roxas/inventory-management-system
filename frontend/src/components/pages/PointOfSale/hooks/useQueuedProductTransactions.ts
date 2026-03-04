@@ -31,6 +31,7 @@ export function useQueuedProductTransactions({
   const pendingTransactionTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(
     new Set(),
   );
+  const formatQuantity = (value: number) => Number(value.toFixed(2));
 
   const handleProductActionSubmit = (
     product: Product,
@@ -55,7 +56,7 @@ export function useQueuedProductTransactions({
         branchId,
         quantity,
       );
-      toast.success(`Added ${quantity} ${product.name} to cart`);
+      toast.success(`Added ${formatQuantity(quantity)} ${product.name} to cart`);
       return;
     }
 

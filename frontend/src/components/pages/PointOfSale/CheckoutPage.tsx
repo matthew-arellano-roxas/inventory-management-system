@@ -22,6 +22,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
 type QuantityInputMode = "AMOUNT" | "QUANTITY";
+const CHECKOUT_DECIMALS = 2;
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -40,12 +41,14 @@ export function CheckoutPage() {
   const [inputModes, setInputModes] = useState<Record<number, QuantityInputMode>>(
     {},
   );
+  const [draftInputs, setDraftInputs] = useState<Record<number, string>>({});
 
   useEffect(() => {
     ensureBranchScope(branchId);
   }, [branchId, ensureBranchScope]);
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const formattedItemCount = Number(itemCount.toFixed(CHECKOUT_DECIMALS));
   const subtotal = items.reduce(
     (total, item) =>
       total + Math.max(item.unitPrice * item.quantity - (item.discount ?? 0), 0),
@@ -61,34 +64,91 @@ export function CheckoutPage() {
   const usesAmountInput = (item: (typeof items)[number]) =>
     canUseAmountMode(item) && getInputMode(item) === "AMOUNT";
 
+  const getDisplayValue = (item: (typeof items)[number]) => {
+    const draftValue = draftInputs[item.productId];
+    if (draftValue !== undefined) return draftValue;
+
+    if (usesAmountInput(item)) {
+      return String(Number((item.unitPrice * item.quantity).toFixed(2)));
+    }
+
+    return String(Number(item.quantity.toFixed(CHECKOUT_DECIMALS)));
+  };
+
   const handleInputModeChange = (
     item: (typeof items)[number],
     mode: QuantityInputMode,
   ) => {
     if (!canUseAmountMode(item)) return;
     setInputModes((prev) => ({ ...prev, [item.productId]: mode }));
+    setDraftInputs((prev) => {
+      const next = { ...prev };
+      delete next[item.productId];
+      return next;
+    });
   };
 
   const handleQuantityInput = (item: (typeof items)[number], value: string) => {
+    setDraftInputs((prev) => ({ ...prev, [item.productId]: value }));
+    if (value === "") return;
+
     const parsed = Number(value);
     if (Number.isNaN(parsed)) return;
 
     if (usesAmountInput(item)) {
       const nextQuantity =
-        item.unitPrice > 0 ? Number((parsed / item.unitPrice).toFixed(3)) : 0;
+        item.unitPrice > 0
+          ? Number((parsed / item.unitPrice).toFixed(CHECKOUT_DECIMALS))
+          : 0;
       setQty(item.productId, nextQuantity);
       return;
     }
 
-    setQty(item.productId, parsed);
+    setQty(item.productId, Number(parsed.toFixed(CHECKOUT_DECIMALS)));
+  };
+
+  const handleQuantityBlur = (item: (typeof items)[number]) => {
+    const draftValue = draftInputs[item.productId];
+    if (draftValue === undefined) return;
+
+    if (draftValue === "") {
+      setDraftInputs((prev) => {
+        const next = { ...prev };
+        delete next[item.productId];
+        return next;
+      });
+      return;
+    }
+
+    const parsed = Number(draftValue);
+    if (Number.isNaN(parsed)) {
+      setDraftInputs((prev) => {
+        const next = { ...prev };
+        delete next[item.productId];
+        return next;
+      });
+    }
   };
 
   const adjustItemQuantity = (item: (typeof items)[number], delta: number) => {
-    setQty(item.productId, Number((item.quantity + delta).toFixed(3)));
+    setDraftInputs((prev) => {
+      const next = { ...prev };
+      delete next[item.productId];
+      return next;
+    });
+    setQty(
+      item.productId,
+      Number((item.quantity + delta).toFixed(CHECKOUT_DECIMALS)),
+    );
   };
 
   const handleRemoveItem = (productId: number) => {
     setInputModes((prev) => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+    setDraftInputs((prev) => {
       const next = { ...prev };
       delete next[productId];
       return next;
@@ -98,6 +158,7 @@ export function CheckoutPage() {
 
   const handleClearCart = () => {
     setInputModes({});
+    setDraftInputs({});
     clearCart();
   };
 
@@ -127,6 +188,7 @@ export function CheckoutPage() {
 
       clearCart();
       setInputModes({});
+      setDraftInputs({});
       toast.success("Checkout completed successfully.");
       navigate(`/pos/${branchId}`);
     } catch (error) {
@@ -175,7 +237,9 @@ export function CheckoutPage() {
                 <p className="text-[10px] uppercase tracking-widest text-white/60">
                   Items
                 </p>
-                <p className="mt-1 text-lg font-bold leading-none">{itemCount}</p>
+                <p className="mt-1 text-lg font-bold leading-none">
+                  {formattedItemCount}
+                </p>
               </div>
               <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
                 <p className="text-[10px] uppercase tracking-widest text-white/60">
@@ -282,12 +346,9 @@ export function CheckoutPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={String(
-                          usesAmountInput(item)
-                            ? Number((item.unitPrice * item.quantity).toFixed(2))
-                            : item.quantity,
-                        )}
+                        value={getDisplayValue(item)}
                         onChange={(e) => handleQuantityInput(item, e.target.value)}
+                        onBlur={() => handleQuantityBlur(item)}
                         className="flex-1 border-muted-foreground/20 text-center font-semibold"
                       />
                       <Button
@@ -370,16 +431,11 @@ export function CheckoutPage() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                value={String(
-                                  usesAmountInput(item)
-                                    ? Number(
-                                        (item.unitPrice * item.quantity).toFixed(2),
-                                      )
-                                    : item.quantity,
-                                )}
+                                value={getDisplayValue(item)}
                                 onChange={(e) =>
                                   handleQuantityInput(item, e.target.value)
                                 }
+                                onBlur={() => handleQuantityBlur(item)}
                                 className="w-24 text-center font-semibold"
                               />
                               <Button
@@ -461,7 +517,8 @@ export function CheckoutPage() {
             <div className="sticky bottom-3 z-10 rounded-2xl border bg-background/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
-                  {itemCount} item{itemCount === 1 ? "" : "s"} in cart
+                  {formattedItemCount} item
+                  {formattedItemCount === 1 ? "" : "s"} in cart
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -474,7 +531,7 @@ export function CheckoutPage() {
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
                 <Button variant="outline" asChild className="h-12">
-                  <Link to={`/pos/${branchId}`}>Continue Shopping</Link>
+                  <Link to={`/pos/${branchId}`}>Add to Cart</Link>
                 </Button>
                 <Button
                   className="h-12 px-6"
