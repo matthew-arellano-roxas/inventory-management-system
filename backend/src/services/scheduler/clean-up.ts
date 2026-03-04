@@ -5,6 +5,7 @@ import { logger } from '@/config';
 import { stockLevelCheck } from './functions/stock-level-check';
 import { cleanupOldAnnouncements } from './functions/notification-cleanup';
 import { cleanupOldDailyReports } from './functions/daily-report-cleanup';
+import { cleanupOldMonthlyReports } from './functions/monthly-report-cleanup';
 import { createMonthlyReport } from './functions/monthly-report';
 import { createDailyReport } from './functions/daily-report';
 import { createResourceCleanAnnouncement } from '../announcement/cleanup-announcement';
@@ -30,34 +31,42 @@ const connection = {
 };
 
 async function runDailyCleanup() {
-  const [transactionResult, stockMovementResult, announcementResult, dailyReportResult] =
-    await Promise.all([
-      cleanupOldTransactions(),
-      cleanupStockMovements(),
-      cleanupOldAnnouncements(),
-      cleanupOldDailyReports(),
-    ]);
+  const [
+    transactionResult,
+    stockMovementResult,
+    announcementResult,
+    dailyReportResult,
+    monthlyReportResult,
+  ] = await Promise.all([
+    cleanupOldTransactions(),
+    cleanupStockMovements(),
+    cleanupOldAnnouncements(),
+    cleanupOldDailyReports(),
+    cleanupOldMonthlyReports(),
+  ]);
 
   const removedStockMovements = stockMovementResult.count ?? 0;
   const removedTransactions = transactionResult.count ?? 0;
   const removedAnnouncements = announcementResult.deleted ?? 0;
   const removedDailyReports = dailyReportResult.deleted ?? 0;
+  const removedMonthlyReports = monthlyReportResult.deleted ?? 0;
 
   if (
     removedTransactions > 0 ||
     removedStockMovements > 0 ||
     removedAnnouncements > 0 ||
-    removedDailyReports > 0
+    removedDailyReports > 0 ||
+    removedMonthlyReports > 0
   ) {
     await createResourceCleanAnnouncement();
     logger.info(
-      `[Scheduler] Daily cleanup summary: transactions deleted=${removedTransactions}, stock movements deleted=${removedStockMovements}, announcements found=${announcementResult.found} deleted=${removedAnnouncements}, daily reports found=${dailyReportResult.found} deleted=${removedDailyReports}.`,
+      `[Scheduler] Daily cleanup summary: transactions deleted=${removedTransactions}, stock movements deleted=${removedStockMovements}, announcements found=${announcementResult.found} deleted=${removedAnnouncements}, daily reports found=${dailyReportResult.found} deleted=${removedDailyReports}, monthly reports found=${monthlyReportResult.found} deleted=${removedMonthlyReports}.`,
     );
     return;
   }
 
   logger.info(
-    `[Scheduler] Daily cleanup summary: transactions deleted=0, stock movements deleted=0, announcements found=${announcementResult.found} deleted=0, daily reports found=${dailyReportResult.found} deleted=0.`,
+    `[Scheduler] Daily cleanup summary: transactions deleted=0, stock movements deleted=0, announcements found=${announcementResult.found} deleted=0, daily reports found=${dailyReportResult.found} deleted=0, monthly reports found=${monthlyReportResult.found} deleted=0.`,
   );
 }
 
