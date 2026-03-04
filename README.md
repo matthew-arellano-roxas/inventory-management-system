@@ -35,9 +35,14 @@ The backend starts BullMQ workers on boot and uses Redis for recurring jobs.
 
 Current scheduled jobs:
 
-- `weekly-cleanup`
-  - Runs weekly
+- `daily-cleanup`
+  - Runs daily at `2:00 AM` (`Asia/Manila`)
   - Cleans old transactions, stock movements, announcements, and old daily report rows
+  - Current retention:
+    - Transactions: 3 months
+    - Stock movements: 14 days
+    - Announcements: 14 days
+    - Daily reports: 30 days
 - `daily-report-and-stock-check`
   - Runs daily at midnight (`Asia/Manila`)
   - Creates the previous day's daily report snapshot
@@ -244,12 +249,32 @@ For Render Key Value:
 
 ```bash
 npm run dev
+npm run dev:development
+npm run dev:production
 npm run build
 npm run start
+npm run start:dev
+npm run start:prod
+npm run lint
+npm run lint:fix
 npm run prisma:migrate
 npm run prisma:generate
 npm run prisma:push
 npm run migrate:deploy
+npm run prisma:migrate:dev
+npm run prisma:migrate:prod
+npm run prisma:generate:dev
+npm run prisma:generate:prod
+npm run migrate:deploy:dev
+npm run migrate:deploy:prod
+npm run prisma:studio
+npm run prisma:studio:dev
+npm run prisma:studio:prod
+npm run prisma:push:dev
+npm run prisma:push:prod
+npm run prisma:reset
+npm run prisma:reset:dev
+npm run prisma:reset:prod
 ```
 
 ### Frontend
@@ -257,6 +282,7 @@ npm run migrate:deploy
 ```bash
 npm run dev
 npm run build
+npm run lint
 npm run preview
 ```
 
