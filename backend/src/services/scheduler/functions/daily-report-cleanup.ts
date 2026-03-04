@@ -7,7 +7,7 @@ export interface DailyReportCleanupResult {
 }
 
 export async function cleanupOldDailyReports(
-  retentionDays = 90,
+  retentionDays = 30,
 ): Promise<DailyReportCleanupResult> {
   const cutoffDate = subDays(new Date(), retentionDays);
 

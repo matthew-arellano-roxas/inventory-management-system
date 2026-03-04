@@ -8,9 +8,9 @@ export interface CleanupResult {
 
 /**
  * Cleans up old notifications.
- * Default retention: 90 days
+ * Default retention: 14 days
  */
-export async function cleanupOldAnnouncements(retentionDays = 90): Promise<CleanupResult> {
+export async function cleanupOldAnnouncements(retentionDays = 14): Promise<CleanupResult> {
   const cutoffDate = subDays(new Date(), retentionDays);
 
   // 1️⃣ Dry run — count first

@@ -1,8 +1,8 @@
-import { subMonths } from 'date-fns';
+import { subDays } from 'date-fns';
 import { prisma } from '@prisma';
 
 export async function cleanupStockMovements() {
-  const cutoffDate = subMonths(new Date(), 1);
+  const cutoffDate = subDays(new Date(), 14);
 
   // 1️⃣ Get all productIds
   const allProducts = await prisma.stockMovement.findMany({
@@ -13,7 +13,7 @@ export async function cleanupStockMovements() {
   const keepIds: number[] = [];
 
   for (const { productId } of allProducts) {
-    // a) Check for recent records (< 1 month)
+    // Keep recent records inside the 14-day retention window.
     const recentRecords = await prisma.stockMovement.findMany({
       where: {
         productId,

@@ -12,7 +12,7 @@ import { createResourceCleanAnnouncement } from '../announcement/cleanup-announc
 const QUEUE_NAME = 'system-jobs';
 const TIMEZONE = 'Asia/Manila';
 
-type SchedulerJobName = 'weekly-cleanup' | 'daily-report-and-stock-check' | 'monthly-report';
+type SchedulerJobName = 'daily-cleanup' | 'daily-report-and-stock-check' | 'monthly-report';
 
 let schedulerQueue: Queue | null = null;
 let schedulerWorker: Worker | null = null;
@@ -29,7 +29,7 @@ const connection = {
   ...(parsedRedisUrl.protocol === 'rediss:' ? { tls: {} } : {}),
 };
 
-async function runWeeklyCleanup() {
+async function runDailyCleanup() {
   const [transactionResult, stockMovementResult, announcementResult, dailyReportResult] =
     await Promise.all([
       cleanupOldTransactions(),
@@ -51,13 +51,13 @@ async function runWeeklyCleanup() {
   ) {
     await createResourceCleanAnnouncement();
     logger.info(
-      `[Scheduler] Weekly cleanup summary: transactions deleted=${removedTransactions}, stock movements deleted=${removedStockMovements}, announcements found=${announcementResult.found} deleted=${removedAnnouncements}, daily reports found=${dailyReportResult.found} deleted=${removedDailyReports}.`,
+      `[Scheduler] Daily cleanup summary: transactions deleted=${removedTransactions}, stock movements deleted=${removedStockMovements}, announcements found=${announcementResult.found} deleted=${removedAnnouncements}, daily reports found=${dailyReportResult.found} deleted=${removedDailyReports}.`,
     );
     return;
   }
 
   logger.info(
-    `[Scheduler] Weekly cleanup summary: transactions deleted=0, stock movements deleted=0, announcements found=${announcementResult.found} deleted=0, daily reports found=${dailyReportResult.found} deleted=0.`,
+    `[Scheduler] Daily cleanup summary: transactions deleted=0, stock movements deleted=0, announcements found=${announcementResult.found} deleted=0, daily reports found=${dailyReportResult.found} deleted=0.`,
   );
 }
 
@@ -74,8 +74,8 @@ async function runMonthlyReport() {
 
 async function processSchedulerJob(job: Job) {
   switch (job.name as SchedulerJobName) {
-    case 'weekly-cleanup':
-      await runWeeklyCleanup();
+    case 'daily-cleanup':
+      await runDailyCleanup();
       return;
     case 'daily-report-and-stock-check':
       await runDailyReportAndStockCheck();
@@ -90,12 +90,12 @@ async function processSchedulerJob(job: Job) {
 
 async function registerRecurringJobs(queue: Queue) {
   await queue.add(
-    'weekly-cleanup',
+    'daily-cleanup',
     {},
     {
-      jobId: 'weekly-cleanup',
+      jobId: 'daily-cleanup',
       repeat: {
-        pattern: '08 03 * * *',
+        pattern: '0 2 * * *',
         tz: TIMEZONE,
       },
       removeOnComplete: 20,
