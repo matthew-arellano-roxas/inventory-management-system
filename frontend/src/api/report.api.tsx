@@ -118,3 +118,31 @@ export const getProductReportById = async (id: number) => {
   );
   return response.data.data;
 };
+
+export type InventoryExportFormat = "excel" | "pdf";
+
+export const downloadInventoryExport = async (
+  format: InventoryExportFormat,
+  query?: ProductReportQuery,
+  timezone?: string,
+) => {
+  const response = await api.get<Blob>("/api/report/inventory-export", {
+    params: cleanQuery({
+      ...(query ?? {}),
+      format,
+      timezone,
+    }),
+    responseType: "blob",
+  });
+
+  const disposition = response.headers["content-disposition"];
+  const match =
+    typeof disposition === "string"
+      ? /filename="?([^"]+)"?/i.exec(disposition)
+      : null;
+
+  return {
+    blob: response.data,
+    fileName: match?.[1] ?? `${new Date().toISOString().slice(0, 19).replace(/:/g, "-").replace("T", "_")}_report.${format === "pdf" ? "pdf" : "xls"}`,
+  };
+};

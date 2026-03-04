@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/helpers/formatCurrency";
 import type { BranchResponse } from "@/types/api/response";
-import { RefreshCw, Search, Warehouse } from "lucide-react";
+import { Download, RefreshCw, Search, Warehouse } from "lucide-react";
 
 type InventoryPageHeaderProps = {
   activeBranchName: string;
@@ -22,7 +22,11 @@ type InventoryPageHeaderProps = {
     net: number;
   };
   isRefreshing: boolean;
+  isExporting: boolean;
+  exportFormat: "excel" | "pdf" | null;
   onRefresh: () => void;
+  onExportExcel: () => void;
+  onExportPdf: () => void;
   search: string;
   onSearchChange: (value: string) => void;
   branches: BranchResponse[];
@@ -39,7 +43,11 @@ export function InventoryPageHeader({
   filteredOpexCount,
   summary,
   isRefreshing,
+  isExporting,
+  exportFormat,
   onRefresh,
+  onExportExcel,
+  onExportPdf,
   search,
   onSearchChange,
   branches,
@@ -83,15 +91,35 @@ export function InventoryPageHeader({
               </div>
             </div>
 
-            <Button
-              variant="default"
-              className="w-full gap-2 lg:w-auto"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-              {isRefreshing ? "Refreshing..." : "Refresh Data"}
-            </Button>
+            <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row">
+              <Button
+                variant="default"
+                className="w-full gap-2 lg:w-auto"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                {isRefreshing ? "Refreshing..." : "Refresh Data"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2 lg:w-auto"
+                onClick={onExportExcel}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4" />
+                {exportFormat === "excel" ? "Exporting..." : "Export Excel"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2 lg:w-auto"
+                onClick={onExportPdf}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4" />
+                {exportFormat === "pdf" ? "Exporting..." : "Export PDF"}
+              </Button>
+            </div>
           </div>
         </div>
 

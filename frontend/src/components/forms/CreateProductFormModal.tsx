@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, type DefaultValues, useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import {
   createProductSchema,
   type CreateProductPayload,
@@ -46,15 +46,18 @@ export function CreateProductFormModal({
   const { create } = useProductMutation();
   const { isLoading: isEmailLoading, user } = useAuth0();
   const hasCategories = categoryList.length > 0;
-  const getResetValues = (): DefaultValues<CreateProductPayload> =>
-    ({
+  const getResetValues = useCallback(
+    (): DefaultValues<CreateProductPayload> =>
+      ({
       name: "",
       costPerUnit: undefined,
       sellingPrice: undefined,
       categoryId: undefined,
       soldBy: Unit.PC,
       branchId: branchId ?? undefined,
-    }) as DefaultValues<CreateProductPayload>;
+      }) as DefaultValues<CreateProductPayload>,
+    [branchId],
+  );
 
   const form = useForm<CreateProductPayload>({
     resolver: zodResolver(createProductSchema),
@@ -72,7 +75,7 @@ export function CreateProductFormModal({
   useEffect(() => {
     if (!isOpen) return;
     form.reset(getResetValues());
-  }, [form, isOpen, branchId]);
+  }, [form, getResetValues, isOpen]);
 
   async function onSubmitFn(data: CreateProductPayload) {
     if (branchId == null) return;

@@ -3,6 +3,8 @@ import { getCategories } from "@/api/category.api";
 import { getOpexList } from "@/api/opex.api";
 import { keys } from "@/api/query-keys";
 import {
+  downloadInventoryExport,
+  type InventoryExportFormat,
   getFinancialReportByBranchId,
   getFinancialReportList,
   getProductReportPage,
@@ -13,18 +15,22 @@ import {
   type InventoryProduct,
   containsSearch,
   normalizeProduct,
-} from "@/components/pages/inventory/inventory-page.shared";
+} from "@/components/pages/inventory/inventory-page.utils";
 import type {
   ProductReportQuery,
   ProductReportResponse,
 } from "@/types/api/response";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 export function useInventoryPageState() {
   const [selectedBranchId, setSelectedBranchId] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [exportFormat, setExportFormat] = useState<InventoryExportFormat | null>(
+    null,
+  );
   const branchIdFilter = selectedBranchId === "all" ? null : Number(selectedBranchId);
   const trimmedSearch = search.trim();
 
@@ -246,6 +252,40 @@ export function useInventoryPageState() {
     ]);
   };
 
+  const exportInventory = async (format: InventoryExportFormat) => {
+    if (exportFormat) return;
+
+    setExportFormat(format);
+
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const { blob, fileName } = await downloadInventoryExport(
+        format,
+        reportFilters,
+        timeZone,
+      );
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(
+        format === "pdf"
+          ? "Inventory PDF downloaded."
+          : "Inventory Excel downloaded.",
+      );
+    } catch (error) {
+      console.error("Inventory export failed", error);
+      toast.error("Failed to export inventory.");
+    } finally {
+      setExportFormat(null);
+    }
+  };
+
   return {
     search,
     selectedBranchId,
@@ -274,10 +314,13 @@ export function useInventoryPageState() {
     prevPage,
     nextPage,
     isRefreshing,
+    isExporting: exportFormat != null,
+    exportFormat,
     isInitialLoading,
     activeBranchName,
     setSearchAndReset,
     setSelectedBranchAndReset,
     refreshAll,
+    exportInventory,
   };
 }

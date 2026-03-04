@@ -1,8 +1,6 @@
 import { Loader } from "@/components/Loader";
-import {
-  EmptyMini,
-  getReportProductName,
-} from "@/components/pages/inventory/inventory-page.shared";
+import { EmptyMini } from "@/components/pages/inventory/inventory-page.shared";
+import { getReportProductName } from "@/components/pages/inventory/inventory-page.utils";
 import { InventoryPageHeader } from "@/components/pages/inventory/InventoryPageHeader";
 import { useInventoryPageState } from "@/components/pages/inventory/hooks/useInventoryPageState";
 import { StockMovementFeed } from "@/components/pages/StockMovementFeed";
@@ -50,7 +48,11 @@ export const InventoryPage = () => {
         filteredOpexCount={state.filteredOpex.length}
         summary={state.summary}
         isRefreshing={state.isRefreshing}
+        isExporting={state.isExporting}
+        exportFormat={state.exportFormat}
         onRefresh={() => void state.refreshAll()}
+        onExportExcel={() => void state.exportInventory("excel")}
+        onExportPdf={() => void state.exportInventory("pdf")}
         search={state.search}
         onSearchChange={state.setSearchAndReset}
         branches={state.branches}

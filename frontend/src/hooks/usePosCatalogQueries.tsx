@@ -30,8 +30,8 @@ function getNextPageFromMeta(
 export function usePosCatalogQueries(filters?: ProductQuery) {
   const staleTime = 60 * 1000;
   const productFilters = cleanQuery(filters ?? {});
-  const { page: _ignoredPage, ...baseProductFilters } =
-    productFilters as ProductQuery;
+  const baseProductFilters = { ...productFilters } as ProductQuery;
+  delete baseProductFilters.page;
 
   const branches = useQuery({
     queryKey: keys.branches.all,
