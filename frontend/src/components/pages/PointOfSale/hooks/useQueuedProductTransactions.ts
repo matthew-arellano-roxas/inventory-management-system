@@ -1,13 +1,20 @@
 import { createTransaction } from "@/api/transaction.api";
 import { TransactionType } from "@/types/api/payload";
 import type { Product } from "@/types/api/response";
+import type { Unit } from "@/types/api/shared";
 import { useRef } from "react";
 import { toast } from "sonner";
 
 export type PosProductActionType = "SALE" | "PURCHASE" | "DAMAGE" | "RETURN";
 
 type AddCartItemFn = (
-  product: { id: number; name: string; sellingPrice?: number; discount?: number },
+  product: {
+    id: number;
+    name: string;
+    sellingPrice?: number;
+    discount?: number;
+    soldBy?: Unit;
+  },
   branchId: number | null,
   quantity?: number,
 ) => void;
@@ -43,6 +50,7 @@ export function useQueuedProductTransactions({
           name: product.name,
           sellingPrice: product.sellingPrice,
           discount,
+          soldBy: product.soldBy,
         },
         branchId,
         quantity,

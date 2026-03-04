@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toastApiError } from "@/api/api-error-handler";
 import { createTransaction } from "@/api/transaction.api";
 import {
@@ -14,10 +15,13 @@ import {
 import { formatCurrency } from "@/helpers/formatCurrency";
 import { usePosCartStore } from "@/stores/usePosCartStore";
 import { TransactionType } from "@/types/api/payload";
+import { Unit } from "@/types/api/shared";
 import { Minus, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+
+type QuantityInputMode = "AMOUNT" | "QUANTITY";
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -33,6 +37,9 @@ export function CheckoutPage() {
   const removeItem = usePosCartStore((state) => state.removeItem);
   const clearCart = usePosCartStore((state) => state.clearCart);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inputModes, setInputModes] = useState<Record<number, QuantityInputMode>>(
+    {},
+  );
 
   useEffect(() => {
     ensureBranchScope(branchId);
@@ -45,10 +52,53 @@ export function CheckoutPage() {
     0,
   );
 
-  const handleQuantityInput = (productId: number, value: string) => {
+  const canUseAmountMode = (item: (typeof items)[number]) =>
+    item.soldBy === Unit.KG;
+
+  const getInputMode = (item: (typeof items)[number]): QuantityInputMode =>
+    canUseAmountMode(item) ? (inputModes[item.productId] ?? "AMOUNT") : "QUANTITY";
+
+  const usesAmountInput = (item: (typeof items)[number]) =>
+    canUseAmountMode(item) && getInputMode(item) === "AMOUNT";
+
+  const handleInputModeChange = (
+    item: (typeof items)[number],
+    mode: QuantityInputMode,
+  ) => {
+    if (!canUseAmountMode(item)) return;
+    setInputModes((prev) => ({ ...prev, [item.productId]: mode }));
+  };
+
+  const handleQuantityInput = (item: (typeof items)[number], value: string) => {
     const parsed = Number(value);
     if (Number.isNaN(parsed)) return;
-    setQty(productId, parsed);
+
+    if (usesAmountInput(item)) {
+      const nextQuantity =
+        item.unitPrice > 0 ? Number((parsed / item.unitPrice).toFixed(3)) : 0;
+      setQty(item.productId, nextQuantity);
+      return;
+    }
+
+    setQty(item.productId, parsed);
+  };
+
+  const adjustItemQuantity = (item: (typeof items)[number], delta: number) => {
+    setQty(item.productId, Number((item.quantity + delta).toFixed(3)));
+  };
+
+  const handleRemoveItem = (productId: number) => {
+    setInputModes((prev) => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+    removeItem(productId);
+  };
+
+  const handleClearCart = () => {
+    setInputModes({});
+    clearCart();
   };
 
   const handleCheckoutSubmit = async () => {
@@ -76,6 +126,7 @@ export function CheckoutPage() {
       });
 
       clearCart();
+      setInputModes({});
       toast.success("Checkout completed successfully.");
       navigate(`/pos/${branchId}`);
     } catch (error) {
@@ -143,7 +194,7 @@ export function CheckoutPage() {
             </Button>
             <Button
               variant="ghost"
-              onClick={clearCart}
+              onClick={handleClearCart}
               disabled={items.length === 0 || isSubmitting}
               className="text-white hover:bg-white/10 hover:text-white"
             >
@@ -209,7 +260,7 @@ export function CheckoutPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => handleRemoveItem(item.productId)}
                         className="shrink-0 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -223,12 +274,7 @@ export function CheckoutPage() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() =>
-                          setQty(
-                            item.productId,
-                            Number((item.quantity - 1).toFixed(2)),
-                          )
-                        }
+                        onClick={() => adjustItemQuantity(item, -1)}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
@@ -236,26 +282,43 @@ export function CheckoutPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={String(item.quantity)}
-                        onChange={(e) =>
-                          handleQuantityInput(item.productId, e.target.value)
-                        }
+                        value={String(
+                          usesAmountInput(item)
+                            ? Number((item.unitPrice * item.quantity).toFixed(2))
+                            : item.quantity,
+                        )}
+                        onChange={(e) => handleQuantityInput(item, e.target.value)}
                         className="flex-1 border-muted-foreground/20 text-center font-semibold"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() =>
-                          setQty(
-                            item.productId,
-                            Number((item.quantity + 1).toFixed(2)),
-                          )
-                        }
+                        onClick={() => adjustItemQuantity(item, 1)}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
+                    {canUseAmountMode(item) && (
+                      <div className="mt-3 flex justify-center">
+                        <Tabs
+                          value={getInputMode(item)}
+                          onValueChange={(value) =>
+                            handleInputModeChange(item, value as QuantityInputMode)
+                          }
+                          className="w-auto"
+                        >
+                          <TabsList className="grid h-8 grid-cols-2">
+                            <TabsTrigger value="AMOUNT" className="px-3 text-xs">
+                              Amount
+                            </TabsTrigger>
+                            <TabsTrigger value="QUANTITY" className="px-3 text-xs">
+                              Qty
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                    )}
 
                     <div className="mt-3 flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
                       <span className="text-muted-foreground">Line Total</span>
@@ -280,7 +343,7 @@ export function CheckoutPage() {
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="px-3">Product</TableHead>
                       <TableHead className="px-3 text-right">Unit Price</TableHead>
-                      <TableHead className="px-3 text-center">Qty</TableHead>
+                      <TableHead className="px-3 text-center">Amount / Qty</TableHead>
                       <TableHead className="px-3 text-right">Total</TableHead>
                       <TableHead className="px-3 text-right">Actions</TableHead>
                     </TableRow>
@@ -293,43 +356,70 @@ export function CheckoutPage() {
                           {formatCurrency(item.unitPrice)}
                         </TableCell>
                         <TableCell className="px-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() =>
-                                setQty(
-                                  item.productId,
-                                  Number((item.quantity - 1).toFixed(2)),
-                                )
-                              }
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={String(item.quantity)}
-                              onChange={(e) =>
-                                handleQuantityInput(item.productId, e.target.value)
-                              }
-                              className="w-24 text-center font-semibold"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() =>
-                                setQty(
-                                  item.productId,
-                                  Number((item.quantity + 1).toFixed(2)),
-                                )
-                              }
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => adjustItemQuantity(item, -1)}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={String(
+                                  usesAmountInput(item)
+                                    ? Number(
+                                        (item.unitPrice * item.quantity).toFixed(2),
+                                      )
+                                    : item.quantity,
+                                )}
+                                onChange={(e) =>
+                                  handleQuantityInput(item, e.target.value)
+                                }
+                                className="w-24 text-center font-semibold"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => adjustItemQuantity(item, 1)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {canUseAmountMode(item) && (
+                              <div className="flex justify-center">
+                                <Tabs
+                                  value={getInputMode(item)}
+                                  onValueChange={(value) =>
+                                    handleInputModeChange(
+                                      item,
+                                      value as QuantityInputMode,
+                                    )
+                                  }
+                                  className="w-auto"
+                                >
+                                  <TabsList className="grid h-8 grid-cols-2">
+                                    <TabsTrigger
+                                      value="AMOUNT"
+                                      className="px-3 text-xs"
+                                    >
+                                      Amount
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                      value="QUANTITY"
+                                      className="px-3 text-xs"
+                                    >
+                                      Qty
+                                    </TabsTrigger>
+                                  </TabsList>
+                                </Tabs>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="px-3 text-right font-semibold">
@@ -355,7 +445,7 @@ export function CheckoutPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => handleRemoveItem(item.productId)}
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />

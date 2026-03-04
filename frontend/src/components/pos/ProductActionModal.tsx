@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,12 +20,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Product } from "@/types/api/response/product.response";
-import { Unit } from "@/types/api/shared";
 import { useAccessControl } from "@/auth/access-control";
-import { toast } from "sonner";
-
-type TransactionType = "SALE" | "PURCHASE" | "DAMAGE" | "RETURN";
-type QuantityInputMode = "AMOUNT" | "QUANTITY";
+import {
+  type QuantityInputMode,
+  type TransactionType,
+  useProductActionModalState,
+} from "@/components/pos/hooks/useProductActionModalState";
 
 interface ProductModalProps {
   product: Product | null;
@@ -47,93 +46,42 @@ export function ProductActionModal({
   onSubmit,
 }: ProductModalProps) {
   const { isAdmin, isAccessControlLoading } = useAccessControl();
-  const [quantity, setQuantity] = useState<string>("1");
-  const [amountInput, setAmountInput] = useState<string>("0");
-  const [inputMode, setInputMode] = useState<QuantityInputMode>("AMOUNT");
-  const [type, setType] = useState<TransactionType>("SALE");
-  const [discountInput, setDiscountInput] = useState<string>("0");
-  const [discountMode, setDiscountMode] = useState<"AMOUNT" | "PERCENT">(
-    "AMOUNT",
-  );
-
-  const effectiveType: TransactionType =
-    !isAccessControlLoading && !isAdmin && type === "PURCHASE" ? "SALE" : type;
-
-  const canUseAmountMode =
-    product?.soldBy === Unit.KG &&
-    (effectiveType === "SALE" || effectiveType === "RETURN");
-  const usesAmountInput = canUseAmountMode && inputMode === "AMOUNT";
-
-  if (!product) return null;
-
-  const numericAmount = Math.max(parseFloat(amountInput) || 0, 0);
-  const numericQuantity = usesAmountInput
-    ? product.sellingPrice > 0
-      ? numericAmount / product.sellingPrice
-      : 0
-    : Math.max(parseFloat(quantity) || 0, 0);
-  const totalSalePrice = usesAmountInput
-    ? numericAmount
-    : product.sellingPrice * numericQuantity;
-  const totalPurchaseCost = product.costPerUnit * numericQuantity;
-  const discountValue = Math.max(parseFloat(discountInput) || 0, 0);
-  const discountBaseAmount = totalSalePrice;
-  const supportsDiscount =
-    effectiveType === "SALE" || effectiveType === "RETURN";
-  const computedDiscountAmount = supportsDiscount
-    ? discountMode === "PERCENT"
-      ? (discountBaseAmount * discountValue) / 100
-      : discountValue
-    : 0;
-  const normalizedDiscountAmount = Number(
-    Math.max(Math.min(computedDiscountAmount, discountBaseAmount), 0).toFixed(
-      2,
-    ),
-  );
-  const discountPercent =
-    supportsDiscount && discountBaseAmount > 0
-      ? (normalizedDiscountAmount / discountBaseAmount) * 100
-      : 0;
-  const formattedQuantity = numericQuantity.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3,
+  const {
+    amountInput,
+    adjustQuantity,
+    canUseAmountMode,
+    discountInput,
+    discountMode,
+    discountPercent,
+    effectiveType,
+    formattedQuantity,
+    handleAmountChange,
+    handleCancel,
+    handleConfirm,
+    handleDialogOpenChange,
+    handleDiscountInputChange,
+    handleDiscountModeChange,
+    handleQuantityChange,
+    handleTypeChange,
+    inputMode,
+    netAmountWithDiscount,
+    normalizedDiscountAmount,
+    numericQuantity,
+    quantity,
+    supportsDiscount,
+    switchInputMode,
+    totalAmount,
+    unitAmount,
+    usesAmountInput,
+  } = useProductActionModalState({
+    product,
+    isAdmin,
+    isAccessControlLoading,
+    onClose,
+    onSubmit,
   });
 
-  const handleConfirm = () => {
-    if (numericQuantity <= 0) return;
-    if (!isAdmin && effectiveType === "PURCHASE") {
-      toast.error("Only admin can create purchase transactions.");
-      setType("SALE");
-      return;
-    }
-    onSubmit(product, numericQuantity, effectiveType, normalizedDiscountAmount);
-    setQuantity("1");
-    setAmountInput("0");
-    setInputMode("AMOUNT");
-    setType("SALE");
-    setDiscountInput("0");
-    setDiscountMode("AMOUNT");
-    onClose();
-  };
-
-  const adjustQuantity = (amount: number) => {
-    setQuantity((prev) => {
-      const nextValue = (parseFloat(prev) || 0) + amount;
-      return nextValue > 0 ? nextValue.toString() : "0";
-    });
-  };
-
-  const switchInputMode = (mode: QuantityInputMode) => {
-    if (!canUseAmountMode || mode === inputMode) return;
-
-    if (mode === "AMOUNT") {
-      setAmountInput((numericQuantity * product.sellingPrice).toFixed(2));
-    } else {
-      setQuantity(numericQuantity.toFixed(3));
-    }
-
-    setInputMode(mode);
-  };
+  if (!product) return null;
 
   const getTheme = () => {
     switch (effectiveType) {
@@ -161,25 +109,9 @@ export function ProductActionModal({
   };
 
   const theme = getTheme();
-  const unitAmount =
-    effectiveType === "PURCHASE" ? product.costPerUnit : product.sellingPrice;
-  const totalAmount =
-    effectiveType === "PURCHASE" ? totalPurchaseCost : totalSalePrice;
-  const netAmountWithDiscount = Math.max(
-    totalSalePrice - normalizedDiscountAmount,
-    0,
-  );
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          setInputMode("AMOUNT");
-          onClose();
-        }
-      }}
-    >
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-xl">{product.name}</DialogTitle>
@@ -188,20 +120,7 @@ export function ProductActionModal({
 
         <Tabs
           value={effectiveType}
-          onValueChange={(value) => {
-            if (value === "PURCHASE" && !isAdmin) {
-              toast.error("Only admin can access purchase actions.");
-              return;
-            }
-            const nextType = value as TransactionType;
-            setType(nextType);
-            setInputMode(
-              product.soldBy === Unit.KG &&
-                (nextType === "SALE" || nextType === "RETURN")
-                ? "AMOUNT"
-                : "QUANTITY",
-            );
-          }}
+          onValueChange={handleTypeChange}
           className="w-full"
         >
           <TabsList
@@ -325,7 +244,7 @@ export function ProductActionModal({
                   min="0"
                   step="0.01"
                   value={amountInput}
-                  onChange={(e) => setAmountInput(e.target.value)}
+                  onChange={(e) => handleAmountChange(e.target.value)}
                   className="text-center text-lg font-bold"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -348,7 +267,7 @@ export function ProductActionModal({
                   type="number"
                   step="0.01"
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
                   className="text-center text-lg font-bold"
                 />
 
@@ -369,9 +288,7 @@ export function ProductActionModal({
                 <Label htmlFor="discount">Discount</Label>
                 <Tabs
                   value={discountMode}
-                  onValueChange={(value) =>
-                    setDiscountMode(value as "AMOUNT" | "PERCENT")
-                  }
+                  onValueChange={handleDiscountModeChange}
                   className="w-auto"
                 >
                   <TabsList className="grid h-8 grid-cols-2">
@@ -390,7 +307,7 @@ export function ProductActionModal({
                 min="0"
                 step="0.01"
                 value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value)}
+                onChange={(e) => handleDiscountInputChange(e.target.value)}
                 placeholder={discountMode === "AMOUNT" ? "0.00" : "0"}
               />
               <p className="text-xs text-muted-foreground">
@@ -403,14 +320,7 @@ export function ProductActionModal({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setInputMode("AMOUNT");
-              onClose();
-            }}
-            className="flex-1"
-          >
+          <Button variant="ghost" onClick={handleCancel} className="flex-1">
             Cancel
           </Button>
           <Button

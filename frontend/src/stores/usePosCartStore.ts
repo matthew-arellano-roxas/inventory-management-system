@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Unit } from "@/types/api/shared";
 
 type CartProductInput = {
   id: number;
   name: string;
   sellingPrice?: number;
   discount?: number;
+  soldBy?: Unit;
 };
 
 export type PosCartItem = {
@@ -15,6 +17,7 @@ export type PosCartItem = {
   quantity: number;
   discount: number;
   branchId: number;
+  soldBy?: Unit;
 };
 
 type PosCartState = {
@@ -92,6 +95,7 @@ export const usePosCartStore = create<PosCartState>()(
                 quantity,
                 discount: Math.max(product.discount ?? 0, 0),
                 branchId,
+                soldBy: product.soldBy,
               },
             ],
           };
