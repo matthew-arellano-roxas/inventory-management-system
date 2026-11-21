@@ -1,118 +1,182 @@
+import { logger } from '@/config';
+import { TransactionBody } from '@/schemas';
+import {
+  createLowStockAnnouncement,
+  createNegativeStockAnnouncement,
+} from '@/services/announcement';
 import { prisma } from '@prisma';
-import type { Product, Transaction } from '@root/generated/prisma/client';
 import {
   StockMovementReason,
   StockMovementType,
   TransactionType,
-} from '@root/generated/prisma/enums';
-import {
-  createStockMovement,
-  createTransactionItem,
-  findProduct,
-  getProductStock,
-  checkCostPerUnit,
-  checkProductExistence,
-  checkSellingPrice,
-  isThereEnoughStock,
-  isLowStock,
-} from '@/services/transaction';
-import { getItemTotalCost, getItemTotalPrice, getProfitAmount } from '@/services/transaction';
-import { logger } from '@/config';
-import { TransactionBody } from '@/schemas';
+  type Product,
+  type ProductReport,
+  type Transaction,
+} from '@root/generated/prisma/client';
+import createHttpError from 'http-errors';
+
+const LOW_STOCK_THRESHOLD = 10;
 
 export async function createSaleTransaction(payload: TransactionBody): Promise<Transaction> {
-  logger.info('Create sale transaction');
+  const productCache = new Map<number, Product>();
+  let totalAmount: number = 0;
   const currentDate = new Date();
-  return await prisma.$transaction(async (tx) => {
-    const productInfo = new Map<number, Pick<Product, 'name' | 'sellingPrice' | 'costPerUnit'>>();
-    let totalAmount: number = 0;
+
+  const branch = await prisma.branch.findFirst({
+    where: { id: payload.branchId },
+    select: { id: true, name: true },
+  });
+
+  if (!branch) {
+    throw createHttpError.NotFound('Branch not found');
+  }
+
+  return prisma.$transaction(async (tx) => {
     for (const item of payload.items) {
-      const product = await findProduct(tx, item);
-
-      checkProductExistence(item.productName, product);
-
-      // Set to Hashmap
-      productInfo.set(item.productId, product);
-
-      // Get Stock
-      const currentStock = await getProductStock(tx, item);
-      const branchName = await tx.branch
-        .findFirst({
-          where: { id: payload.branchId },
-          select: {
-            name: true,
-          },
-        })
-        .then((branch) => branch?.name ?? 'Unknown');
-
-      // Compare available stock and user item quantity
-      isThereEnoughStock(item.productName, currentStock, item.quantity);
-      isLowStock(item.productName, branchName, currentStock - item.quantity, 30);
-      // Create Stock Movement Record
-      await createStockMovement(tx, {
-        productId: item.productId,
-        quantity: item.quantity,
-        movementType: StockMovementType.OUT,
-        movementReason: StockMovementReason.SALE,
-        oldValue: currentStock,
-        newValue: currentStock - item.quantity,
-        createdAt: currentDate,
+      const product = await tx.product.findFirst({
+        where: { id: item.productId },
       });
 
-      // Accumulated value of total amount of all items
-      totalAmount += getItemTotalPrice(product.sellingPrice, item.quantity) - item.discount;
+      if (!product) {
+        throw createHttpError.NotFound('Product not found');
+      }
+
+      productCache.set(item.productId, product);
+
+      const productReport = await tx.productReport.findFirst({
+        where: { productId: item.productId },
+        select: { productId: true, stock: true },
+      });
+
+      if (!productReport) {
+        throw createHttpError.NotFound('Product Report not found');
+      }
+
+      const productStock = getStockCount(productReport);
+
+      const enoughStock = hasEnoughStock(productStock, item.quantity);
+
+      if (!enoughStock) {
+        throw createHttpError.BadRequest('Not enough stock');
+      }
+
+      if (hasNegativeStock(productStock)) {
+        createNegativeStockAnnouncement(product.name, branch.name);
+        throw createHttpError.BadRequest('Stock cannot be negative');
+      }
+
+      const movement = await tx.stockMovement.create({
+        data: {
+          productId: item.productId,
+          quantity: item.quantity,
+          movementType: StockMovementType.OUT,
+          movementReason: StockMovementReason.SALE,
+          oldValue: productStock,
+          newValue: productStock - item.quantity,
+          createdAt: currentDate,
+        },
+      });
+
+      const newStockLevel = movement.newValue;
+
+      if (hasLowStock(newStockLevel)) {
+        createLowStockAnnouncement(product.name, branch.name);
+      }
+
+      const itemTotalAmount = getItemTotalAmount(product.sellingPrice, item.quantity);
+      const itemDiscountedTotalAmount = applyDiscount(itemTotalAmount, item.discount);
+      totalAmount += itemDiscountedTotalAmount;
     }
 
-    // Create Transaction
     const transaction = await tx.transaction.create({
       data: {
         branchId: payload.branchId,
         type: TransactionType.SALE,
-        totalAmount: totalAmount, // Total Amount from earlier
+        totalAmount,
         createdAt: currentDate,
       },
     });
 
     for (const item of payload.items) {
-      const currentItem = productInfo.get(item.productId);
-      checkSellingPrice(item.productName, currentItem);
-      checkCostPerUnit(item.productName, currentItem);
+      const currentItem = productCache.get(item.productId);
+      if (!currentItem) {
+        throw createHttpError.NotFound('Cached Product Not Found');
+      }
+      const itemTotalAmount = getItemTotalAmount(currentItem.sellingPrice, item.quantity);
+      const totalGrossProfit =
+        getGrossProfit(currentItem.costPerUnit, currentItem.sellingPrice) * item.quantity;
 
-      const salesAmount = getItemTotalCost(currentItem.sellingPrice, item.quantity) - item.discount;
+      // Discounted Values
+      const itemTotalAmountAfterDiscount = applyDiscount(itemTotalAmount, item.discount);
+      const grossProfitAfterDiscount = applyDiscount(totalGrossProfit, item.discount);
 
-      const profitAmount =
-        getProfitAmount(currentItem.costPerUnit, currentItem.sellingPrice, item.quantity) -
-        item.discount;
-
-      // Create Transaction Item
-      await createTransactionItem(tx, {
-        productId: item.productId,
-        transactionId: transaction.id,
-        quantity: item.quantity,
-        price: salesAmount,
-        transactionType: TransactionType.SALE,
-        createdAt: currentDate,
+      await tx.transactionItem.create({
+        data: {
+          transactionId: transaction.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          createdAt: currentDate,
+          transactionType: TransactionType.SALE,
+          price: itemTotalAmount,
+        },
       });
 
-      // Reflect on Product Report
       await tx.productReport.update({
         where: { productId: item.productId },
         data: {
-          revenue: { increment: salesAmount },
-          profit: { increment: profitAmount },
-          stock: { decrement: item.quantity },
+          stock: {
+            decrement: item.quantity,
+          },
+          revenue: {
+            increment: itemTotalAmountAfterDiscount,
+          },
+          profit: {
+            increment: grossProfitAfterDiscount,
+          },
         },
       });
-      // Reflect on Branch Report
+
       await tx.branchReport.update({
         where: { branchId: payload.branchId },
         data: {
-          revenue: { increment: salesAmount },
-          profit: { increment: profitAmount },
+          revenue: {
+            increment: itemTotalAmountAfterDiscount,
+          },
+          profit: {
+            increment: grossProfitAfterDiscount,
+          },
         },
       });
     }
-
+    logger.info('Sale transaction created');
     return transaction;
   });
+}
+
+export function getStockCount(report: Partial<ProductReport>): number {
+  return report.stock ?? 0;
+}
+
+export function hasLowStock(stock: number): boolean {
+  return stock <= LOW_STOCK_THRESHOLD;
+}
+
+export function hasEnoughStock(currentQuantity: number, requestedQuantity: number): boolean {
+  return currentQuantity >= requestedQuantity;
+}
+
+export function getItemTotalAmount(sellingPrice: number, quantity: number) {
+  return sellingPrice * quantity;
+}
+
+export function getGrossProfit(costPerUnit: number, sellingPrice: number) {
+  return sellingPrice - costPerUnit;
+}
+
+export function applyDiscount(totalAmount: number, discount: number) {
+  return totalAmount - discount;
+}
+
+export function hasNegativeStock(stock: number): boolean {
+  return stock < 0;
 }

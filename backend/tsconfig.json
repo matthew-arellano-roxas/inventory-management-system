@@ -3,7 +3,6 @@
     "target": "ES6",
     "module": "commonjs",
     "rootDir": ".",
-    "baseUrl": "./",
     "outDir": "dist",
     "removeComments": true,
     "esModuleInterop": true,
@@ -13,13 +12,13 @@
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["src/*"],
-      "@root/*": ["*"],
-      "@prisma": ["lib/prisma"],
-      "@models": ["generated/prisma/client"],
-      "@helpers/*": ["src/helpers/*"]
+      "@/*": ["./src/*"],
+      "@root/*": ["./*"],
+      "@prisma": ["./lib/prisma"],
+      "@models": ["./generated/prisma/client"],
+      "@helpers/*": ["./src/helpers/*"]
     }
   },
-  "include": ["src/**/*", "src/config"],
+  "include": ["src/**/*", "src/config", "src/services/transaction/.ts"],
   "exclude": ["node_modules"]
 }

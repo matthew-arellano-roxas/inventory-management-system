@@ -1,4 +1,4 @@
-import { getIO } from '@/socket';
+import { getIO } from '@/config/socket';
 import { AnnouncementBody, AnnouncementPayload } from '@/types/announcement.types';
 import { prisma } from '@root/lib/prisma';
 import { invalidateCache } from '@/middlewares/cache';
