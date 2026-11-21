@@ -31,7 +31,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       args:
         DATABASE_URL: ${DATABASE_URL}
     container_name: inventory-backend

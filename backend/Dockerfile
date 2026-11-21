@@ -4,12 +4,12 @@ WORKDIR /usr/src/app
 
 ARG DATABASE_URL
 
-COPY package*.json ./
-COPY prisma ./prisma
+COPY backend/package*.json ./
+COPY backend/prisma ./prisma
 
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
-COPY . .
+COPY backend/ .
 
 RUN npx prisma generate
 RUN npm run build
@@ -22,9 +22,9 @@ COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/prisma.config.ts ./
 
-COPY package*.json ./
+COPY backend/package*.json ./
 
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 EXPOSE 3000
 
